@@ -274,17 +274,22 @@ ORGANIZATION=OpenCloudHub
 
 ### 5. Start the Runner Container
 
-Source the environment file and run the container:
+First, remove any existing container:
 
 ```bash
-source .env && docker run \
+docker rm -f local-runner 2>/dev/null || true
+```
+
+Then start the runner using the environment file:
+
+```bash
+docker run \
   --detach \
   --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --group-add $(stat -c '%g' /var/run/docker.sock) \
   --ulimit nofile=65536:65536 \
-  --env ORGANIZATION \
-  --env ACCESS_TOKEN \
+  --env-file .env \
   --name local-runner \
   gh-actions-local-runner
 ```
