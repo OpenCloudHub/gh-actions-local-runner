@@ -1,0 +1,14 @@
+name: Test Cluster Connection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-connection:
+    runs-on: self-hosted-local
+    steps:
+      - name: Check kubectl access
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+          kubectl get namespaces

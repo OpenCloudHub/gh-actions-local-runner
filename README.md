@@ -255,16 +255,36 @@ docker build \
 
 **Note**: Tokens expire after 1 hour and are single-use. You'll need a new token for each runner instance.
 
-### 4. Start the Runner Container
+### 4. Configure Environment Variables
+
+Create a `.env` file with your credentials:
 
 ```bash
-docker run \
+cp .env.example .env
+```
+
+Edit `.env` with your values:
+```bash
+ACCESS_TOKEN=<YOUR-GITHUB-TOKEN>
+ORGANIZATION=OpenCloudHub
+```
+
+> [!CAUTION]
+> Never commit your `.env` file to version control. It contains sensitive credentials.
+
+### 5. Start the Runner Container
+
+Source the environment file and run the container:
+
+```bash
+source .env && docker run \
   --detach \
   --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --group-add $(stat -c '%g' /var/run/docker.sock) \
-  --env ORGANIZATION=<YOUR-GITHUB-ORG> \
-  --env ACCESS_TOKEN=<YOUR-GITHUB-TOKEN> \
+  --ulimit nofile=65536:65536 \
+  --env ORGANIZATION \
+  --env ACCESS_TOKEN \
   --name local-runner \
   gh-actions-local-runner
 ```
@@ -274,6 +294,7 @@ docker run \
 - `--network host`: Share host network (allows access to localhost services)
 - `-v /var/run/docker.sock:/var/run/docker.sock`: Mount Docker socket for Docker commands
 - `--group-add $(stat -c '%g' /var/run/docker.sock)`: Grant Docker socket access
+- `--ulimit`: Increase size
 - `--env ORGANIZATION`: Your GitHub organization name
 - `--env ACCESS_TOKEN`: Registration token from GitHub
 - `--name local-runner`: Container name for easy management
@@ -342,7 +363,7 @@ rm /tmp/kubeconfig-embedded.yaml
 #### Store in GitHub Secrets
 
 1. Copy the base64-encoded output
-2. Go to your repository `Settings > Secrets and variables > Actions`
+2. Go to your organisation or repository `Settings > Secrets and variables > Actions`
 3. Click `New repository secret`
 4. Name: `KUBE_CONFIG`
 5. Value: Paste the base64 string
@@ -492,8 +513,12 @@ docker system df -v
 ```
 
 #### Clean Up Docker Resources
+Here are some possible ways to clean up your local machine:
 
 ```bash
+# Start here: Remove build cache
+docker buildx prune -af
+
 # Remove all stopped containers, unused networks, and dangling images
 docker system prune -f
 
