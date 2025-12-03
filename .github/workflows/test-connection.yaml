@@ -1,19 +1,40 @@
+# =============================================================================
+# test-connection.yaml - Verify Local Kubernetes Cluster Connectivity
+# =============================================================================
+#
+# Purpose:
+#   Tests that the self-hosted runner can successfully connect to the local
+#   Kubernetes cluster (Minikube/kind) via kubectl. This workflow validates
+#   that the KUBE_CONFIG secret is properly configured and the cluster is
+#   accessible from GitHub Actions workflows.
+#
+# Usage:
+#   Trigger manually from: Actions > Test Cluster Connection > Run workflow
+#
+# Prerequisites:
+#   - Self-hosted runner running with label 'self-hosted-local'
+#   - KUBE_CONFIG secret configured (base64-encoded kubeconfig)
+#   - Local Kubernetes cluster running and accessible
+#
+# =============================================================================
+
 name: Test Cluster Connection
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Manual trigger only
 
 jobs:
   test-connection:
     runs-on: self-hosted-local
     steps:
-      # Resuse our shared workflow
+      # Configure kubectl using shared action from .github repo
       - name: 🔧 Setup kubectl
         uses: OpenCloudHub/.github/.github/actions/setup-kubectl@main
         with:
           kube-config: ${{ secrets.KUBE_CONFIG }}
 
-      - name: Check kubectl access
+      # Verify cluster connectivity and basic access
+      - name: ✅ Check kubectl access
         run: |
           kubectl cluster-info
           kubectl get nodes

@@ -47,70 +47,60 @@
 <details>
   <summary>📑 Table of Contents</summary>
   <ol>
-    <li><a href="#overview">Overview</a></li>
-    <li><a href="#use-cases">Use Cases</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#features">Features</a></li>
     <li><a href="#architecture">Architecture</a></li>
-    <li><a href="#prerequisites">Prerequisites</a></li>
     <li><a href="#getting-started">Getting Started</a></li>
     <li><a href="#configuration">Configuration</a></li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#maintenance">Maintenance</a></li>
+    <li><a href="#project-structure">Project Structure</a></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
+    <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
   </ol>
 </details>
 
-<!-- OVERVIEW -->
-<h2 id="overview">📖 Overview</h2>
+<!-- ABOUT -->
+<h2 id="about">🎯 About</h2>
 
-This project provides a **containerized self-hosted GitHub Actions runner** designed for local development environments and CI/CD workflows that require:
+This project provides a **containerized self-hosted GitHub Actions runner** designed for local development environments. It enables CI/CD workflows to access local resources such as Kubernetes clusters running on the host machine, while keeping the runner isolated in a Docker container.
 
-- **Local Kubernetes cluster access** (e.g., Minikube, kind, k3s)
-- **Local compute resources** propably higher than GitHub's standard hosted runners (2-core CPU, 7GB RAM)
-- **Docker-in-Docker capabilities** for building and testing container images
-- **Network isolation control** for accessing services running on the host machine
-- **Custom tooling and dependencies** not available in GitHub-hosted runners
+### Why This Runner?
 
-### Why Containerize the Runner?
+Standard GitHub-hosted runners operate in GitHub's cloud infrastructure and cannot access resources on your local machine. This runner bridges that gap by:
 
-Running the GitHub Actions runner in a Docker container provides several advantages:
+- Running on your local machine inside a Docker container
+- Connecting to local Kubernetes clusters (Minikube, kind, k3s)
+- Using host Docker daemon for building and pushing container images
+- Providing higher compute resources than GitHub's standard runners (2-core CPU, 7GB RAM)
 
-- **Isolation**: Runner dependencies and workflows don't pollute your host system
-- **Portability**: Same runner configuration works across different development machines
-- **Resource Control**: Limit CPU, memory, and storage usage via Docker constraints
-- **Security**: Restrict access to host resources through volume mounts and network policies
-- **Clean State**: Each container restart provides a fresh environment
-- **Development Parity**: Mirrors production self-hosted runner deployments
+### 📚 Thesis Context
+
+> This runner is developed as part of a Master's thesis project exploring cloud-native MLOps infrastructure. It serves as the **local development bridge** between GitHub Actions workflows and a local Minikube cluster.
+
+**Development Use Case:**
+- Test GitHub Actions workflows against a local Kubernetes cluster before deploying to production
+- Build and push container images using the host's Docker daemon
+- Validate GitOps deployments with ArgoCD locally
+
+**Production Considerations:**
+In a production environment, you would typically not use a local self-hosted runner. Instead, consider:
+- **GitHub-hosted runners** for standard CI tasks
+- **Self-hosted runners in Kubernetes** using [actions-runner-controller](https://github.com/actions/actions-runner-controller) for cluster-integrated workflows
+- **Cloud-based self-hosted runners** (AWS, GCP, Azure) for custom compute requirements
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- USE CASES -->
-<h2 id="use-cases">🎯 Use Cases</h2>
+<!-- FEATURES -->
+<h2 id="features">✨ Features</h2>
 
-This runner is specifically designed for workflows that require:
-
-### 1. **Local Kubernetes Cluster Integration**
-- Developing GitOps workflows with ArgoCD or Flux
-- Accessing or commiting jobs to the cluster during workflows
-- Testing Helm chart deployments against local clusters
-- Validating Kubernetes manifests before committing
-- Running integration tests that require cluster resources
-
-### 2. **Container Image Building**
-- Building multi-platform Docker images with BuildKit
-- Pushing images to local or private registries
-- Caching local layers for fast development build iterations
-
-### 3. **Higher-Compute Workloads**
-- Can save on cloud runner cost and enable local copute resource usage
-- This can be helpful for workflos such as building larger ML container 
-  images that would OOM standard GH Actions runners
-
-### 4. **Custom Tool Requirements**
-- Using tools not available in GitHub's hosted runners
-- Testing with specific versions of dependencies
-- Accessing proprietary or licensed software on your machine
+- **🐳 Containerized Runner** - Isolated execution environment that doesn't pollute your host system
+- **🔌 Docker Socket Mounting** - Access host Docker daemon for building images without Docker-in-Docker overhead
+- **☸️ Kubernetes Integration** - Connect to local clusters (Minikube, kind, k3s) via kubeconfig
+- **🏷️ Custom Labels** - Target specific workflows with `self-hosted-local` label
+- **🔄 Graceful Lifecycle** - Automatic registration/deregistration with GitHub on start/stop
+- **🛡️ Non-Root Execution** - Runs as unprivileged user for security
+- **📦 Minimal Dependencies** - Ubuntu-based with only essential tools pre-installed
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -174,54 +164,21 @@ The runner uses **Docker socket mounting** rather than Docker-in-Docker (DinD):
 
 **Limitation:**
 > [!WARNING]  
-> Workflows have access to host Docker daemon 
-> and can run execute possibly dangerous code on your machine(trust required)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- PREREQUISITES -->
-<h2 id="prerequisites">✅ Prerequisites</h2>
-
-Before setting up the runner, ensure you have:
-
-### System Requirements
-
-- **Operating System**: Linux (Ubuntu 20.04+ recommended)
-- **CPU**: 2+ cores (4+ recommended for image building)
-- **RAM**: 4GB minimum (8GB+ recommended)
-- **Disk Space**: 20GB+ free space (images and build cache accumulate quickly)
-
-### Required Software
-
-- **Docker**: Version 20.10+ ([Installation Guide](https://docs.docker.com/engine/install/))
-  ```bash
-  docker --version
-  ```
-
-### GitHub Configuration
-
-1. **Personal Access Token (PAT)** with the following scopes:
-   - `repo` - Full repository access
-   - `admin:org` - Manage runners (for organization-level runners)
-   - `workflow` - Update workflow files
-
-   Create at: `Settings > Developer settings > Personal access tokens > Fine-grained tokens`
-
-2. **GitHub Organization**: You must be an organization admin to add self-hosted runners
-
-3. **Runner Registration**: Access to `Settings > Actions > Runners` in your organization
-
-### Network Configuration
-
-- Outbound HTTPS (443) access to:
-  - `github.com` - GitHub API and authentication
-  - `api.github.com` - Runner registration
-  - `objects.githubusercontent.com` - Artifact downloads
+> Workflows have access to host Docker daemon and can execute potentially dangerous code on your machine (trust required).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
 <h2 id="getting-started">🚀 Getting Started</h2>
+
+### Prerequisites
+
+Before setting up the runner, ensure you have:
+
+- **Operating System**: Linux (Ubuntu 20.04+ recommended)
+- **Docker**: Version 20.10+ ([Installation Guide](https://docs.docker.com/engine/install/))
+- **GitHub Organization**: Admin access to add self-hosted runners
+- **Disk Space**: 20GB+ free space (images and build cache accumulate quickly)
 
 ### 1. Clone the Repository
 
@@ -253,7 +210,8 @@ docker build \
 3. Click `New self-hosted runner`
 4. Copy the registration token from the configuration commands
 
-**Note**: Tokens expire after 1 hour and are single-use. You'll need a new token for each runner instance.
+> [!NOTE]
+> Tokens may expire. You'll need a new token for each runner instance.
 
 ### 4. Configure Environment Variables
 
@@ -299,12 +257,11 @@ docker run \
 - `--network host`: Share host network (allows access to localhost services)
 - `-v /var/run/docker.sock:/var/run/docker.sock`: Mount Docker socket for Docker commands
 - `--group-add $(stat -c '%g' /var/run/docker.sock)`: Grant Docker socket access
-- `--ulimit`: Increase size
-- `--env ORGANIZATION`: Your GitHub organization name
-- `--env ACCESS_TOKEN`: Registration token from GitHub
+- `--ulimit`: Increase file descriptor limit
+- `--env-file .env`: Load environment variables from file
 - `--name local-runner`: Container name for easy management
 
-### 5. Verify Runner Registration
+### 6. Verify Runner Registration
 
 Check that the runner started successfully:
 
@@ -325,6 +282,32 @@ Expected output:
 Verify in GitHub:
 - Navigate to `Settings > Actions > Runners`
 - Your runner should appear with status "Idle"
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- PROJECT STRUCTURE -->
+<h2 id="project-structure">📁 Project Structure</h2>
+
+```
+gh-actions-local-runner/
+├── .github/
+│   └── workflows/
+│       └── test-connection.yaml  # Example workflow to test cluster connectivity
+├── Dockerfile                    # Container image definition
+├── start.sh                      # Runner entrypoint script (registration/lifecycle)
+├── .env.example                  # Template for environment variables
+├── .gitignore                    # Git ignore rules (includes .env)
+├── LICENSE                       # Apache 2.0 license
+└── README.md                     # This documentation
+```
+
+### Key Files
+
+| File           | Purpose                                                                      |
+| -------------- | ---------------------------------------------------------------------------- |
+| `Dockerfile`   | Builds Ubuntu-based image with GitHub Actions runner and Docker CLI          |
+| `start.sh`     | Handles runner registration, signal handling, and graceful shutdown          |
+| `.env.example` | Template for required environment variables (`ACCESS_TOKEN`, `ORGANIZATION`) |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -387,214 +370,36 @@ rm /tmp/kubeconfig-embedded.yaml
   run: kubectl cluster-info
 ```
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- USAGE -->
-<h2 id="usage">🔧 Usage</h2>
-
-### Reference Runner in Workflows
-
-Target your self-hosted runner by specifying its label:
-
-```yaml
-name: Build and Test
-on: [push, pull_request]
-
-jobs:
-  build:
-    # Use your self-hosted runner
-    runs-on: self-hosted-local
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Build Docker image
-        run: docker build -t myapp:${{ github.sha }} .
-      
-      - name: Run tests
-        run: docker run --rm myapp:${{ github.sha }} npm test
-```
-
-### Advanced Workflow Examples
-
-#### Multi-Platform Image Build
-
-```yaml
-- name: Set up QEMU
-  uses: docker/setup-qemu-action@v3
-
-- name: Set up Docker Buildx
-  uses: docker/setup-buildx-action@v3
-
-- name: Build multi-platform image
-  run: |
-    docker buildx build \
-      --platform linux/amd64,linux/arm64 \
-      --tag myapp:latest \
-      --push .
-```
-
-#### Kubernetes Deployment Test
-
-```yaml
-- name: Deploy to local cluster
-  run: |
-    kubectl apply -f k8s/
-    kubectl rollout status deployment/myapp
-    kubectl get pods
-
-- name: Run integration tests
-  run: |
-    kubectl port-forward service/myapp 8080:80 &
-    sleep 5
-    curl http://localhost:8080/health
-```
-
-### Container Management
-
-#### View Runner Logs
+### Runner Management
 
 ```bash
-# Follow logs in real-time
+# View logs
 docker logs local-runner -f
 
-# View last 100 lines
-docker logs local-runner --tail 100
-```
-
-#### Stop the Runner
-
-```bash
+# Stop runner (gracefully unregisters from GitHub)
 docker stop local-runner
-```
 
-The runner will gracefully unregister from GitHub.
-
-#### Start Stopped Runner
-
-```bash
-docker start local-runner
-```
-
-**Note**: The container will need a new registration token if it was stopped for an extended period.
-
-#### Restart Runner
-
-```bash
+# Restart runner
 docker restart local-runner
-```
 
-#### Remove Runner Container
-
-```bash
-# Stop and remove
+# Remove and recreate
 docker rm -f local-runner
-
-# Remove image (if rebuilding)
-docker rmi gh-actions-local-runner
 ```
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- MAINTENANCE -->
-<h2 id="maintenance">🧹 Maintenance</h2>
-
-### Disk Space Management
+### Disk Space Cleanup
 
 > [!WARNING]
-> Docker image builds can quickly consume disk space. Build caches, intermediate layers, and unused images accumulate over time.
-
-#### Check Disk Usage
+> Docker image builds can quickly consume disk space.
 
 ```bash
-# Check overall disk space
-df -h
-
-# Check Docker-specific usage
+# Check Docker disk usage
 docker system df
 
-# Detailed breakdown
-docker system df -v
-```
-
-#### Clean Up Docker Resources
-Here are some possible ways to clean up your local machine:
-
-```bash
-# Start here: Remove build cache
+# Clean build cache
 docker buildx prune -af
 
-# Remove all stopped containers, unused networks, and dangling images
-docker system prune -f
-
-# Aggressive cleanup (includes unused images and build cache)
+# Aggressive cleanup (removes unused images)
 docker system prune -a -f
-
-# Also remove volumes (⚠️ deletes persistent data)
-docker system prune -a --volumes -f
-```
-
-#### Automated Cleanup in Workflows
-
-Add cleanup steps to your workflows:
-
-```yaml
-- name: Clean up Docker
-  if: always()  # Run even if previous steps fail
-  run: |
-    docker system prune -f --filter "until=24h"
-```
-
-#### Configure Docker Storage Limits
-
-Edit `/etc/docker/daemon.json` on your host:
-
-```json
-{
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "3"
-  },
-  "storage-driver": "overlay2",
-  "data-root": "/mnt/docker-data"  // Optional: Move to larger partition
-}
-```
-
-Restart Docker:
-```bash
-sudo systemctl restart docker
-```
-
-### Update Runner Version
-
-When GitHub releases a new runner version:
-
-1. Update the `RUNNER_VERSION` in your build command:
-   ```bash
-   docker build \
-     --build-arg RUNNER_VERSION=2.330.0 \
-     --tag gh-actions-local-runner .
-   ```
-
-2. Stop and remove the old container:
-   ```bash
-   docker rm -f local-runner
-   ```
-
-3. Start a new container with the updated image (see [Getting Started](#getting-started))
-
-### Monitor Runner Health
-
-```bash
-# Check if container is running
-docker ps --filter name=local-runner
-
-# View resource usage
-docker stats local-runner
-
-# Check runner status in GitHub
-# Navigate to: Settings > Actions > Runners
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -604,86 +409,37 @@ docker stats local-runner
 
 ### Common Issues
 
-#### Issue: "No space left on device"
-
-**Cause**: Docker has filled up your disk with images and build cache.
-
-**Solution**:
-```bash
-# Check what's using space
-docker system df
-
-# Clean up aggressively
-docker system prune -a -f
-
-# If still full, check host disk space
-df -h
-```
-
-#### Issue: Runner not appearing in GitHub
-
-**Possible causes**:
-1. **Token expired**: Registration tokens expire after 1 hour
-   - Solution: Generate a new token and recreate the container
-
-2. **Network issues**: Runner can't reach GitHub API
-   - Check: `docker logs local-runner`
-   - Verify: Outbound HTTPS access to `github.com`
-
-3. **Wrong organization name**
-   - Verify: `ORGANIZATION` environment variable matches exactly
-
-#### Issue: "Permission denied" for Docker socket
-
-**Cause**: Runner user doesn't have access to Docker socket.
-
-**Solution**:
-Ensure you're using the `--group-add` flag:
-```bash
---group-add $(stat -c '%g' /var/run/docker.sock)
-```
-
-#### Issue: Workflows time out connecting to local services
-
-**Cause**: Network isolation between container and host.
-
-**Solution**:
-Use `--network host` when starting the container, or reference services by host IP instead of `localhost`.
-
-#### Issue: Kubectl can't find cluster
-
-**Cause**: Kubeconfig not accessible or incorrect.
-
-**Solutions**:
-1. Verify secret is correctly base64 encoded
-2. Check kubeconfig has embedded certificates (not file paths)
-3. Ensure cluster is accessible from container network
+| Issue                                 | Cause                    | Solution                                               |
+| ------------------------------------- | ------------------------ | ------------------------------------------------------ |
+| "No space left on device"             | Docker disk full         | Run `docker system prune -a -f`                        |
+| Runner not appearing in GitHub        | Token expired (1h limit) | Generate new token, recreate container                 |
+| "Permission denied" for Docker socket | Missing group access     | Add `--group-add $(stat -c '%g' /var/run/docker.sock)` |
+| Kubectl can't find cluster            | Bad kubeconfig           | Verify base64 encoding and embedded certificates       |
 
 ### Enable Debug Logging
 
-For more detailed logs, set debug environment variable:
-
 ```bash
-docker run \
-  --detach \
-  --network host \
+docker run --detach --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --group-add $(stat -c '%g' /var/run/docker.sock) \
-  --env ORGANIZATION=<YOUR-GITHUB-ORG> \
-  --env ACCESS_TOKEN=<YOUR-GITHUB-TOKEN> \
+  --env-file .env \
   --env RUNNER_DEBUG=1 \
   --name local-runner \
   gh-actions-local-runner
 ```
 
-### Getting Help
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-If you encounter issues not covered here:
+<!-- CONTRIBUTING -->
+<h2 id="contributing">👥 Contributing</h2>
 
-1. Check runner logs: `docker logs local-runner -f`
-2. Review [GitHub Actions documentation](https://docs.github.com/en/actions)
-3. Open an issue in this repository
-4. Join our [community discussions](https://github.com/orgs/opencloudhub/discussions)
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
